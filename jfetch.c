@@ -6,6 +6,7 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <pdh.h>
+#include <stdint.h>
 #include <windows.h>
 #include <psapi.h>
 #include <sysinfoapi.h>
@@ -337,6 +338,14 @@ void fetch_terminal_name(char *terminal_name) {
 #endif
 }
 
+#ifdef _WIN32
+static BOOL FileTimeToUInt64(const FILETIME *ft, uint64_t *out) {
+    if (!ft || !out) return FALSE;
+    *out = ((uint64_t)ft->dwHighDateTime << 32) | ft->dwLowDateTime;
+    return TRUE;
+}
+#endif
+
 void fetch_cpu_name(char *cpu_name) {
     NULL_RETURN(cpu_name);
     strncpy(cpu_name, "Unknown", BUFFERSIZE);
@@ -375,48 +384,41 @@ void fetch_cpu_usage(char *cpu_usage) {
     NULL_RETURN(cpu_usage);
 
 #ifdef _WIN32
-    static PDH_HQUERY query = NULL;
-    static PDH_HCOUNTER counter = NULL;
-    static int first_call = 1;
-    
-    if (first_call) {
-        first_call = 0;
-        memset(cpu_usage, 0, BUFFERSIZE); 
-        strncpy(cpu_usage, "Measuring...", BUFFERSIZE);
-        
-        if (PdhOpenQuery(NULL, 0, &query) != ERROR_SUCCESS) {
-            memset(cpu_usage, 0, BUFFERSIZE);
-            strncpy(cpu_usage, "PDH Error", BUFFERSIZE);
-            return;
-        }
-        
-        if (PdhAddEnglishCounter(query, "\\Processor(_Total)\\% Processor Time", 0, &counter) != ERROR_SUCCESS) {
-            PdhCloseQuery(query);
-            query = NULL;
-            memset(cpu_usage, 0, BUFFERSIZE); // Clear first
-            strncpy(cpu_usage, "Counter Error", BUFFERSIZE);
-            return;
-        }
-        PdhCollectQueryData(query);
+    static uint64_t _prevIdle = 0, _prevKernel = 0, _prevUser = 0;
+    FILETIME idleTime, kernelTime, userTime;
+
+    if (!GetSystemTimes(&idleTime, &kernelTime, &userTime)) {
+        snprintf(cpu_usage, BUFFERSIZE, "GetSystemTimes Error");
         return;
     }
-    
-    memset(cpu_usage, 0, BUFFERSIZE);
-    if (PdhCollectQueryData(query) != ERROR_SUCCESS) {
-        strncpy(cpu_usage, "Collect Error", BUFFERSIZE);
+
+    uint64_t idle, kernel, user;
+    if (!FileTimeToUInt64(&idleTime, &idle) || 
+        !FileTimeToUInt64(&kernelTime, &kernel) || 
+        !FileTimeToUInt64(&userTime, &user)) {
+        snprintf(cpu_usage, BUFFERSIZE, "Time Conversion Error");
         return;
     }
-    
-    PDH_FMT_COUNTERVALUE value;
-    memset(&value, 0, sizeof(PDH_FMT_COUNTERVALUE)); // Initialize the structure
-    
-    if (PdhGetFormattedCounterValue(counter, PDH_FMT_DOUBLE, NULL, &value) != ERROR_SUCCESS) {
-        strncpy(cpu_usage, "Format Error", BUFFERSIZE);
+
+    if (_prevIdle == 0 && _prevKernel == 0 && _prevUser == 0) {
+        _prevIdle   = idle;
+        _prevKernel = kernel;
+        _prevUser   = user;
+        snprintf(cpu_usage, BUFFERSIZE, "Measuring...");
         return;
     }
-    
-    memset(cpu_usage, 0, BUFFERSIZE);
-    snprintf(cpu_usage, BUFFERSIZE, "%.0f%%", value.doubleValue);
+    uint64_t idleDiff   = idle   - _prevIdle;
+    uint64_t kernelDiff = kernel - _prevKernel;
+    uint64_t userDiff   = user   - _prevUser;
+    uint64_t total = kernelDiff + userDiff;
+    uint64_t busy  = total - idleDiff;
+
+    double cpuPercent = total ? (busy * 100.0) / (double)total : 0.0;
+    _prevIdle   = idle;
+    _prevKernel = kernel;
+    _prevUser   = user;
+
+    snprintf(cpu_usage, BUFFERSIZE, "%.0f%%", cpuPercent);
 #else
     strncpy(cpu_usage, "Unknown", BUFFERSIZE);
     

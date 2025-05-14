@@ -1,4 +1,19 @@
-# Jfetch🌠🎀
+This is a fork of Jfetch that builds on Windows as well (albeit the solution is scuffed and bodged together so not guaranteed to be future proof)
+
+On Windows build using:
+```
+gcc -o jfetch jfetch.c -lws2_32 -lpdh -lpsapi -ladvapi32  
+```
+![windows.gif](windows.gif)
+![linux.gif](linux.gif)
+
+This codebase is Erina themed.
+If you want to build the Jelly version instead do the following:
+1. Copy `jorb.c` from the [original repo ](https://github.com/jffops/jfetch/blob/main/jorb.c)
+2. Open jfetch.c with any text editor. Find and Replace `eri-fetch🐯⚙️` -> `jfetch🌠🎀`
+3. Find `#define COLOR_CYAN` in `jfetch.h` and replace the value there with `"\033[38;5;14m"`
+
+# Jfetch🌠🎀 (Original README)
 
 A Jelly Hoshiumi themed neofetch parody written in C just for lulz.
 

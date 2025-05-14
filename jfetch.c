@@ -99,18 +99,43 @@ void fetch_os_name(char *os_name) {
     strncpy(os_name, "Unknown", BUFFERSIZE);
     
 #ifdef _WIN32
-    OSVERSIONINFOEX info;
-    ZeroMemory(&info, sizeof(OSVERSIONINFOEX));
-    info.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+    HKEY hKey;
+    char productName[BUFFERSIZE] = {0};
+    char releaseId[BUFFERSIZE] = {0};
+    char displayVersion[BUFFERSIZE] = {0};
+    DWORD size;
+    char buildNumberStr[BUFFERSIZE] = {0};
     
-    // Note: GetVersionEx is deprecated but works for basic info
-    // For production code, use RtlGetVersion or VersionHelpers API
-    GetVersionEx((OSVERSIONINFO*)&info);
-    
-    snprintf(os_name, BUFFERSIZE, "Windows %d.%d (Build %d)",
-             info.dwMajorVersion, 
-             info.dwMinorVersion, 
-             info.dwBuildNumber);
+    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+                    "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
+                    0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+        size = BUFFERSIZE;
+        RegQueryValueEx(hKey, "CurrentBuildNumber", NULL, NULL, (LPBYTE)buildNumberStr, &size);
+        int buildNumber = atoi(buildNumberStr);
+        size = BUFFERSIZE;
+        RegQueryValueEx(hKey, "ProductName", NULL, NULL, (LPBYTE)productName, &size);
+        if (buildNumber >= 22000 && strstr(productName, "Windows 10") != NULL) {
+            char *pos = strstr(productName, "Windows 10");
+            pos[8] = '1';
+            pos[9] = '1';
+        }
+        size = BUFFERSIZE;
+        RegQueryValueEx(hKey, "DisplayVersion", NULL, NULL, (LPBYTE)displayVersion, &size);
+        if (strlen(displayVersion) == 0) {
+            size = BUFFERSIZE;
+            RegQueryValueEx(hKey, "ReleaseId", NULL, NULL, (LPBYTE)releaseId, &size);
+        }
+        
+        if (strlen(displayVersion) > 0) {
+            snprintf(os_name, BUFFERSIZE, "%s %s", productName, displayVersion);
+        } else if (strlen(releaseId) > 0) {
+            snprintf(os_name, BUFFERSIZE, "%s %s", productName, releaseId);
+        } else {
+            strncpy(os_name, productName, BUFFERSIZE);
+        }
+        
+        RegCloseKey(hKey);
+    }
 #else
     FILE *f = fopen("/etc/os-release", "r");
     if (!f)
@@ -139,21 +164,44 @@ void fetch_kernel_version(char *kernel_version) {
     strncpy(kernel_version, "Unknown", BUFFERSIZE);
 
 #ifdef _WIN32
-    DWORD size = BUFFERSIZE;
+    char buildNumber[BUFFERSIZE] = {0};
+    OSVERSIONINFOEX osvi;
+    ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+    GetVersionEx((OSVERSIONINFO*)&osvi);
     HKEY hKey;
     if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-                    "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
-                    0, KEY_READ, &hKey) == ERROR_SUCCESS) {
-        char productName[BUFFERSIZE] = {0};
-        DWORD productSize = BUFFERSIZE;
-        RegQueryValueEx(hKey, "ProductName", NULL, NULL, (LPBYTE)productName, &productSize);
+                     "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
+                     0, KEY_READ, &hKey) == ERROR_SUCCESS) {
         
-        char buildNumber[BUFFERSIZE] = {0};
-        DWORD buildSize = BUFFERSIZE;
-        RegQueryValueEx(hKey, "CurrentBuildNumber", NULL, NULL, (LPBYTE)buildNumber, &buildSize);
-        
-        snprintf(kernel_version, BUFFERSIZE, "%s (Build %s)", productName, buildNumber);
+        DWORD size = BUFFERSIZE;
+        RegQueryValueEx(hKey, "CurrentBuildNumber", NULL, NULL, (LPBYTE)buildNumber, &size);
         RegCloseKey(hKey);
+    }
+    DWORD ubr = 0;
+    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+                     "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
+                     0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+        
+        DWORD size = sizeof(DWORD);
+        RegQueryValueEx(hKey, "UBR", NULL, NULL, (LPBYTE)&ubr, &size);
+        
+        char displayVersion[BUFFERSIZE] = {0};
+        size = BUFFERSIZE;
+        RegQueryValueEx(hKey, "DisplayVersion", NULL, NULL, (LPBYTE)displayVersion, &size);
+        
+        if (strlen(displayVersion) > 0) {
+            snprintf(kernel_version, BUFFERSIZE, "WIN32_NT %d.%d.%s.%d (%s)",
+                    osvi.dwMajorVersion, osvi.dwMinorVersion, buildNumber, ubr, displayVersion);
+        } else {
+            snprintf(kernel_version, BUFFERSIZE, "WIN32_NT %d.%d.%s.%d",
+                    osvi.dwMajorVersion, osvi.dwMinorVersion, buildNumber, ubr);
+        }
+        
+        RegCloseKey(hKey);
+    } else {
+        snprintf(kernel_version, BUFFERSIZE, "WIN32_NT %d.%d (Build %s)",
+                osvi.dwMajorVersion, osvi.dwMinorVersion, buildNumber);
     }
 #else
     struct utsname data;
@@ -172,7 +220,27 @@ void fetch_desktop_name(char *desktop_name) {
     strncpy(desktop_name, "Unknown", BUFFERSIZE);
 
 #ifdef _WIN32
-    strncpy(desktop_name, "Windows Explorer", BUFFERSIZE);
+    OSVERSIONINFOEX osvi;
+    ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+    GetVersionEx((OSVERSIONINFO*)&osvi);
+    
+    char buildNumber[BUFFERSIZE] = {0};
+    HKEY hKey;
+    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+                   "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
+                   0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+        
+        DWORD size = BUFFERSIZE;
+        RegQueryValueEx(hKey, "CurrentBuildNumber", NULL, NULL, (LPBYTE)buildNumber, &size);
+        RegCloseKey(hKey);
+    }
+    int buildNum = atoi(buildNumber);
+    if (buildNum >= 22000) {
+        strncpy(desktop_name, "Fluent", BUFFERSIZE);
+    } else {
+        strncpy(desktop_name, "Windows Explorer", BUFFERSIZE);
+    }
 #else
     char *desktop = getenv("XDG_SESSION_DESKTOP");
     char *session = getenv("XDG_SESSION_TYPE");
@@ -209,14 +277,38 @@ void fetch_terminal_name(char *terminal_name) {
     strncpy(terminal_name, "Unknown", BUFFERSIZE);
 
 #ifdef _WIN32
-    if (GetConsoleTitle(terminal_name, BUFFERSIZE) == 0) {
-        // If we can't get console title, try to find a common terminal
-        if (getenv("WT_SESSION"))
-            strncpy(terminal_name, "Windows Terminal", BUFFERSIZE);
-        else if (getenv("TERM_PROGRAM"))
-            strncpy(terminal_name, getenv("TERM_PROGRAM"), BUFFERSIZE);
-        else
-            strncpy(terminal_name, "Console", BUFFERSIZE);
+    char buffer[BUFFERSIZE] = { 0 };
+    if (getenv("WT_SESSION")) {
+        strncpy(terminal_name, "Windows Terminal", BUFFERSIZE);
+    } else if (getenv("TERM_PROGRAM")) {
+        strncpy(terminal_name, getenv("TERM_PROGRAM"), BUFFERSIZE);
+    } else {
+        OSVERSIONINFOEX osvi;
+        ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+        osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+        GetVersionEx((OSVERSIONINFO*)&osvi);
+        
+        DWORD buildNumber = 0;
+        HKEY hKey;
+        if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+                      "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
+                      0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+            DWORD size = sizeof(DWORD);
+            DWORD ubr = 0;
+            RegQueryValueEx(hKey, "UBR", NULL, NULL, (LPBYTE)&ubr, &size);
+            
+            char buildNumberStr[BUFFERSIZE];
+            size = BUFFERSIZE;
+            RegQueryValueEx(hKey, "CurrentBuildNumber", NULL, NULL, (LPBYTE)buildNumberStr, &size);
+            buildNumber = atoi(buildNumberStr);
+            
+            snprintf(terminal_name, BUFFERSIZE, "Windows Console %d.%d.%d.%d", 
+                    osvi.dwMajorVersion, osvi.dwMinorVersion, buildNumber, ubr);
+            
+            RegCloseKey(hKey);
+        } else {
+            strncpy(terminal_name, "Windows Console", BUFFERSIZE);
+        }
     }
 #else
     char buffer[BUFFERSIZE] = { 0 };
@@ -280,44 +372,53 @@ void fetch_cpu_name(char *cpu_name) {
 
 void fetch_cpu_usage(char *cpu_usage) {
     NULL_RETURN(cpu_usage);
-    strncpy(cpu_usage, "Unknown", BUFFERSIZE);
 
 #ifdef _WIN32
     static PDH_HQUERY query = NULL;
     static PDH_HCOUNTER counter = NULL;
+    static int first_call = 1;
     
-    if (query == NULL) {
+    if (first_call) {
+        first_call = 0;
+        memset(cpu_usage, 0, BUFFERSIZE); 
+        strncpy(cpu_usage, "Measuring...", BUFFERSIZE);
+        
         if (PdhOpenQuery(NULL, 0, &query) != ERROR_SUCCESS) {
+            memset(cpu_usage, 0, BUFFERSIZE);
             strncpy(cpu_usage, "PDH Error", BUFFERSIZE);
             return;
         }
         
-        // Use compiler guards in case PDH functions aren't available
         if (PdhAddEnglishCounter(query, "\\Processor(_Total)\\% Processor Time", 0, &counter) != ERROR_SUCCESS) {
             PdhCloseQuery(query);
             query = NULL;
+            memset(cpu_usage, 0, BUFFERSIZE); // Clear first
             strncpy(cpu_usage, "Counter Error", BUFFERSIZE);
             return;
         }
-        
         PdhCollectQueryData(query);
-        strncpy(cpu_usage, "Measuring...", BUFFERSIZE);
         return;
     }
     
-    PDH_FMT_COUNTERVALUE value;
+    memset(cpu_usage, 0, BUFFERSIZE);
     if (PdhCollectQueryData(query) != ERROR_SUCCESS) {
         strncpy(cpu_usage, "Collect Error", BUFFERSIZE);
         return;
     }
+    
+    PDH_FMT_COUNTERVALUE value;
+    memset(&value, 0, sizeof(PDH_FMT_COUNTERVALUE)); // Initialize the structure
     
     if (PdhGetFormattedCounterValue(counter, PDH_FMT_DOUBLE, NULL, &value) != ERROR_SUCCESS) {
         strncpy(cpu_usage, "Format Error", BUFFERSIZE);
         return;
     }
     
+    memset(cpu_usage, 0, BUFFERSIZE);
     snprintf(cpu_usage, BUFFERSIZE, "%.0f%%", value.doubleValue);
 #else
+    strncpy(cpu_usage, "Unknown", BUFFERSIZE);
+    
     FILE *f = fopen("/proc/stat", "r");
     if (!f)
         return;
@@ -330,9 +431,12 @@ void fetch_cpu_usage(char *cpu_usage) {
             &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal, &guest, &guest_nice
         );
         size_t total = user + nice + system + idle + iowait + irq + softirq + steal + guest + guest_nice;
-        snprintf(cpu_usage, BUFFERSIZE,
-            "%.0f%%", (1 - (double)(idle - prev_idle) / (total - prev_total)) * 100
-        );
+        if (prev_total > 0) {
+            memset(cpu_usage, 0, BUFFERSIZE); // Clear the buffer
+            snprintf(cpu_usage, BUFFERSIZE,
+                "%.0f%%", (1 - (double)(idle - prev_idle) / (total - prev_total)) * 100
+            );
+        }
         prev_total = total;
         prev_idle = idle;
     }
@@ -391,6 +495,33 @@ void fetch_swap_usage(char *swap_usage) {
     NULL_RETURN(swap_usage);
     strncpy(swap_usage, "Unknown", BUFFERSIZE);
 
+#ifdef _WIN32
+    MEMORYSTATUSEX memInfo;
+    memInfo.dwLength = sizeof(MEMORYSTATUSEX);
+    if (GlobalMemoryStatusEx(&memInfo)) {
+        DWORDLONG totalPhysical = memInfo.ullTotalPhys;
+        DWORDLONG totalVirtual = memInfo.ullTotalPageFile;
+        DWORDLONG availVirtual = memInfo.ullAvailPageFile;
+        DWORDLONG totalSwap = totalVirtual - totalPhysical;
+        DWORDLONG usedSwap = totalSwap - (availVirtual - memInfo.ullAvailPhys);
+        if (totalSwap > 0) {
+            if (usedSwap < 0) usedSwap = 0;
+            double totalGB = (double)totalSwap / (1024 * 1024 * 1024);
+            
+            if (usedSwap == 0) {
+                snprintf(swap_usage, BUFFERSIZE, "0 B / %.2f GiB (0%%)", totalGB);
+            } else {
+                double usedGB = (double)usedSwap / (1024 * 1024 * 1024);
+                double percentage = 100.0 * usedSwap / totalSwap;
+                
+                snprintf(swap_usage, BUFFERSIZE, "%.2f GiB / %.2f GiB (%.0f%%)", 
+                         usedGB, totalGB, percentage);
+            }
+        } else {
+            strncpy(swap_usage, "Not Available", BUFFERSIZE);
+        }
+    }
+#else
     FILE *f = fopen("/proc/meminfo", "r");
     if (!f)
         return;
@@ -415,6 +546,7 @@ void fetch_swap_usage(char *swap_usage) {
     }
 
     fclose(f);
+#endif
 }
 
 void fetch_disk_usage(char *disk_usage) {
@@ -625,6 +757,8 @@ void print_stats(system_stats stats) {
     printf(POS COLOR_CYAN "Shell:    " COLOR_RESET " %s", line++, column, stats.shell_name);
     printf(POS COLOR_CYAN "Terminal: " COLOR_RESET " %s", line++, column, stats.terminal_name);
     printf(POS COLOR_CYAN "CPU:      " COLOR_RESET " %s", line++, column, stats.cpu_name);
+    printf(POS, line, column);
+    for (int i = 0; i < 50; i++) putchar(' '); // bro im lazy ok?
     printf(POS COLOR_CYAN "CPU Usage:" COLOR_RESET " %s", line++, column, stats.cpu_usage);
     printf(POS COLOR_CYAN "Memory:   " COLOR_RESET " %s", line++, column, stats.ram_usage);
     printf(POS COLOR_CYAN "Swap:     " COLOR_RESET " %s", line++, column, stats.swap_usage);
@@ -650,6 +784,7 @@ BOOL WINAPI handle_exit_win(DWORD signal) {
     cursorInfo.bVisible = TRUE;
     SetConsoleCursorInfo(hConsole, &cursorInfo);
     
+    WSACleanup();
     exit(0);
     return TRUE;
 }
@@ -669,7 +804,11 @@ void handle_exit(int /*signal*/) {
 
 int main() {
 #ifdef _WIN32
-    // Windows terminal initialization
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        fprintf(stderr, "WSAStartup failed\n");
+        return 1;
+    }
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_CURSOR_INFO cursorInfo;
     GetConsoleCursorInfo(hConsole, &cursorInfo);

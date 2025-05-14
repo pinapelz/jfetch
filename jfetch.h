@@ -37,6 +37,7 @@ typedef struct system_stats {
 typedef struct animation_object {
     size_t current_frame;
     size_t frame_count;
+    const char *color;
     char *frames[];
 } animation_object;
 

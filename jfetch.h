@@ -7,11 +7,11 @@
 #define PADDING 44     // Jorb size
 #define FPS 20         // Speed of animation/stats reloading
 
-// Escape codes for drawing 
+// Escape codes for drawing
 #define CLEARSCREEN "\033[2J"
-#define COLOR_CYAN "\033[38;5;14m"
+#define COLOR_CYAN "\033[38;2;45;120;180m"
 #define COLOR_RESET "\033[0m"
-#define POS "\033[%d;%dH" // Move cursor to y;x 
+#define POS "\033[%d;%dH" // Move cursor to y;x
 
 #define NULL_RETURN(ptr) do { if (ptr == NULL) return; } while (0)
 

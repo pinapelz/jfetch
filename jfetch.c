@@ -9,7 +9,7 @@
 #include <sys/sysinfo.h>
 #include <sys/statvfs.h>
 
-#include "jorb.c" // Jorb animation object 
+#include "jorb.c" // Jorb animation object
 #include "jfetch.h"
 
 // IMPLEMENTED:
@@ -30,7 +30,7 @@
 // Uptime [x]
 // Battery [x]
 
-static system_stats sysstats = { 0 }; 
+static system_stats sysstats = { 0 };
 
 char *yield_frame(animation_object *ao) {
     char *frame = ao->frames[ao->current_frame];
@@ -72,11 +72,11 @@ void fetch_datetime(char *datetime) {
 void fetch_os_name(char *os_name) {
     NULL_RETURN(os_name);
     strncpy(os_name, "Unknown", BUFFERSIZE);
-    
+
     FILE *f = fopen("/etc/os-release", "r");
     if (!f)
         return;
-    
+
     char buffer[BUFFERSIZE] = { 0 };
     char *tmp = NULL;
     while (fgets(buffer, BUFFERSIZE, f) != NULL) {
@@ -90,7 +90,7 @@ void fetch_os_name(char *os_name) {
             break;
         }
     }
-    
+
     fclose(f);
 }
 
@@ -114,7 +114,7 @@ void fetch_desktop_name(char *desktop_name) {
 
     char *desktop = getenv("XDG_SESSION_DESKTOP");
     char *session = getenv("XDG_SESSION_TYPE");
-    
+
     if (desktop && session) {
         snprintf(desktop_name, BUFFERSIZE, "%s (%s)", desktop, session);
     }
@@ -126,7 +126,7 @@ void fetch_shell_name(char *shell_name) {
 
     char *value = getenv("SHELL");
     value = strrchr(value, '/');
-    if (value) 
+    if (value)
         strncpy(shell_name, value + 1, BUFFERSIZE);
 }
 
@@ -147,7 +147,7 @@ void fetch_terminal_name(char *terminal_name) {
         return;
     }
     fclose(f);
-    
+
     snprintf(buffer, BUFFERSIZE, "/proc/%d/comm", ppid);
     f = fopen(buffer, "r");
     if (!f)
@@ -166,7 +166,7 @@ void fetch_cpu_name(char *cpu_name) {
     FILE *f = fopen("/proc/cpuinfo", "r");
     if (!f)
         return;
-    
+
     char buffer[BUFFERSIZE] = { 0 };
     char *tmp = NULL;
     while (fgets(buffer, BUFFERSIZE, f) != NULL) {
@@ -178,7 +178,7 @@ void fetch_cpu_name(char *cpu_name) {
             break;
         }
     }
-    
+
     fclose(f);
 }
 
@@ -194,17 +194,17 @@ void fetch_cpu_usage(char *cpu_usage) {
     char buffer[BUFFERSIZE];
     if (fgets(buffer, BUFFERSIZE, f) != NULL) {
         size_t user, nice, system, idle, iowait, irq, softirq, steal, guest, guest_nice;
-        sscanf(buffer, "cpu %zd %zd %zd %zd %zd %zd %zd %zd %zd %zd", 
+        sscanf(buffer, "cpu %zd %zd %zd %zd %zd %zd %zd %zd %zd %zd",
             &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal, &guest, &guest_nice
         );
         size_t total = user + nice + system + idle + iowait + irq + softirq + steal + guest + guest_nice;
-        snprintf(cpu_usage, BUFFERSIZE, 
+        snprintf(cpu_usage, BUFFERSIZE,
             "%.0f%%", (1 - (double)(idle - prev_idle) / (total - prev_total)) * 100
         );
         prev_total = total;
         prev_idle = idle;
     }
-        
+
     fclose(f);
 }
 
@@ -215,26 +215,26 @@ void fetch_ram_usage(char *ram_usage) {
     FILE *f = fopen("/proc/meminfo", "r");
     if (!f)
         return;
-        
+
     char buffer[BUFFERSIZE] = { 0 };
     size_t total_kB = 0, used_kB = 0;
     while (fgets(buffer, BUFFERSIZE, f) != NULL) {
-        if (total_kB && used_kB) 
+        if (total_kB && used_kB)
             break;
         sscanf(buffer, "MemTotal: %zd kB", &total_kB);
         sscanf(buffer, "MemAvailable: %zd kB", &used_kB);
     }
-    
+
     if (total_kB && used_kB) {
         used_kB = total_kB - used_kB;
-        snprintf(ram_usage, BUFFERSIZE, 
-            "%.2fGB / %.2fGB (%.0f%%)", 
+        snprintf(ram_usage, BUFFERSIZE,
+            "%.2fGB / %.2fGB (%.0f%%)",
             (double)used_kB / 1024 / 1024,
             (double)total_kB / 1024 / 1024,
-            (double)used_kB / total_kB * 100 
+            (double)used_kB / total_kB * 100
         );
     }
-    
+
     fclose(f);
 }
 
@@ -245,20 +245,20 @@ void fetch_swap_usage(char *swap_usage) {
     FILE *f = fopen("/proc/meminfo", "r");
     if (!f)
         return;
-        
+
     char buffer[BUFFERSIZE] = { 0 };
     size_t total_kB = 0, used_kB = 0;
     while (fgets(buffer, BUFFERSIZE, f) != NULL) {
-        if (total_kB && used_kB) 
+        if (total_kB && used_kB)
             break;
         sscanf(buffer, "SwapTotal: %zd kB", &total_kB);
         sscanf(buffer, "SwapFree: %zd kB", &used_kB);
     }
-    
+
     if (total_kB && used_kB) {
         used_kB = total_kB - used_kB;
-        snprintf(swap_usage, BUFFERSIZE, 
-            "%.2fGB / %.2fGB (%.0f%%)", 
+        snprintf(swap_usage, BUFFERSIZE,
+            "%.2fGB / %.2fGB (%.0f%%)",
             (double)used_kB / 1024 / 1024,
             (double)total_kB / 1024 / 1024,
             (double)used_kB * 100 / total_kB
@@ -278,8 +278,8 @@ void fetch_disk_usage(char *disk_usage) {
         size_t used_bytes = total_bytes - data.f_frsize * data.f_bfree;
 
         snprintf(disk_usage, BUFFERSIZE,
-            "%.1fGB / %.1fGB (%.0f%%)", 
-            (double)used_bytes / 1024 / 1024 / 1024, 
+            "%.1fGB / %.1fGB (%.0f%%)",
+            (double)used_bytes / 1024 / 1024 / 1024,
             (double)total_bytes / 1024 / 1024 / 1024,
             (double)used_bytes * 100 / total_bytes
         );
@@ -290,7 +290,7 @@ void fetch_process_count(char *process_count) {
     NULL_RETURN(process_count);
     strncpy(process_count, "Unknown", BUFFERSIZE);
     char buffer[BUFFERSIZE] = { 0 };
-    
+
     FILE *f = popen("ps -aux | wc -l", "r");
     if (fgets(buffer, BUFFERSIZE, f) != NULL) {
         strncpy(process_count, buffer, BUFFERSIZE);
@@ -318,7 +318,7 @@ void fetch_battery_charge(char *battery_charge) {
     FILE *f = fopen("/sys/class/power_supply/BAT0/capacity", "r");
     if (!f)
         return;
-    
+
     char buffer[BUFFERSIZE] = { 0 };
     fgets(buffer, BUFFERSIZE, f);
     strncpy(battery_charge, buffer, BUFFERSIZE);
@@ -355,21 +355,21 @@ void update_dynamic_stats(system_stats *stats) {
     fetch_swap_usage(stats->swap_usage);
     fetch_process_count(stats->process_count);
     fetch_uptime(stats->uptime);
-    fetch_battery_charge(stats->battery_charge);    
+    fetch_battery_charge(stats->battery_charge);
 }
 
 void get_terminal_size(int *columns, int *lines) {
     *columns = 0; *lines = 0;
     char buffer[BUFFERSIZE] = { 0 };
     FILE *f = popen("tput cols", "r");
-    if (!f) 
+    if (!f)
         return;
     if (fgets(buffer, BUFFERSIZE, f) != NULL)
         *columns = atoi(buffer);
     pclose(f);
 
     f = popen("tput lines", "r");
-    if (!f) 
+    if (!f)
         return;
     if (fgets(buffer, BUFFERSIZE, f) != NULL)
         *lines = atoi(buffer);
@@ -398,12 +398,12 @@ void draw_line(int length) {
 }
 
 void print_stats(system_stats stats) {
-    int line = 1, 
+    int line = 1,
         column = PADDING + 2;
     int namelen = strlen(stats.user_name) + strlen(stats.host_name) + 1;
-    printf(POS COLOR_RESET COLOR_CYAN "%*sjfetch🌠🎀" COLOR_RESET, line++, column, (namelen - 8) / 2, "");
+    printf(POS COLOR_RESET COLOR_CYAN "%*seri-fetch🐯⚙️" COLOR_RESET, line++, column, (namelen - 8) / 2, "");
     printf(POS COLOR_CYAN "%s" COLOR_RESET "@" COLOR_CYAN "%s" COLOR_RESET, line++, column, stats.user_name, stats.host_name);
-    printf(POS, line++, column); 
+    printf(POS, line++, column);
     draw_line(namelen);
     printf(POS COLOR_CYAN "Datetime: " COLOR_RESET " %s", line++, column, stats.datetime);
     printf(POS COLOR_CYAN "OS:       " COLOR_RESET " %s", line++, column, stats.os_name);
@@ -427,7 +427,7 @@ void handle_exit(int /*signal*/) {
     clear_screen(columns, lines);
     print_stats(sysstats);
     print_logo();
-    
+
     printf("\n");
     system("tput cnorm");
     exit(0);
@@ -442,11 +442,11 @@ int main() {
     size_t frame = 0;
     int prev_columns = 0, prev_lines = 0;
     int columns, lines;
-    while (1) { 
+    while (1) {
         get_terminal_size(&columns, &lines);
         if (prev_columns != columns || prev_lines != lines) {
             clear_screen(columns, lines);
-            prev_columns = columns; 
+            prev_columns = columns;
             prev_lines = lines;
         }
         print_stats(sysstats);

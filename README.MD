@@ -7,11 +7,19 @@ gcc -o jfetch jfetch.c -lws2_32 -lpdh -lpsapi -ladvapi32
 ![windows.gif](windows.gif)
 ![linux.gif](linux.gif)
 
-This codebase is Erina themed.
-If you want to build the Jelly version instead do the following:
-1. Copy `jorb.c` from the [original repo ](https://github.com/jffops/jfetch/blob/main/jorb.c)
-2. Open jfetch.c with any text editor. Find and Replace `eri-fetch🐯⚙️` -> `jfetch🌠🎀`
-3. Find `#define COLOR_CYAN` in `jfetch.h` and replace the value there with `"\033[38;5;14m"`
+To change the orb:
+Linux: `jfetch <name>`
+Windows: `jfetch.exe <name>`
+
+```
+jelly, erina
+```
+
+If you want to build the full Jelly themed version instead do the following:
+
+1. Open jfetch.c with any text editor. Find and Replace `eri-fetch🐯⚙️` -> `jfetch🌠🎀`
+
+2. Find `#define COLOR_CYAN` in `jfetch.h` and replace the value there with `"\033[38;5;14m"`
 
 # Jfetch🌠🎀 (Original README)
 

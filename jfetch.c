@@ -50,6 +50,7 @@
 // Battery [x]
 
 static system_stats sysstats = { 0 };
+animation_object *jorb = NULL;
 
 char *yield_frame(animation_object *ao) {
     char *frame = ao->frames[ao->current_frame];
@@ -733,7 +734,7 @@ void clear_screen(int columns, int lines) {
 void print_logo() {
     //printf(POS "%s", 0, 0, arch_logo_8x15);
     //printf(POS COLOR_CYAN "%s" COLOR_RESET, 0, 0, arch_logo_wide);
-    printf(yield_frame(&jorb));
+    printf(yield_frame(jorb));
 }
 
 void draw_line(int length) {
@@ -802,7 +803,7 @@ void handle_exit(int /*signal*/) {
 }
 #endif
 
-int main() {
+int main(int argc, char** argv) {
 #ifdef _WIN32
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
@@ -820,6 +821,19 @@ int main() {
     signal(SIGINT, handle_exit);
     system("tput civis");
 #endif
+    
+    if (argc == 2) {
+        if (strcmp(argv[1], "jelly") == 0) {
+            jorb = &jelly_jorb;
+        } else if (strcmp(argv[1], "erina") == 0) {
+            jorb = &erina_jorb;
+        } else {
+            fprintf(stderr, "Unknown talent: %s\n", argv[1]);
+            return 1;
+        }
+    } else {
+        jorb = &jelly_jorb;
+    }
 
     fetch_stats(&sysstats);
 

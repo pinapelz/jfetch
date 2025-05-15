@@ -99,7 +99,7 @@ void fetch_datetime(char *datetime) {
 void fetch_os_name(char *os_name) {
     NULL_RETURN(os_name);
     strncpy(os_name, "Unknown", BUFFERSIZE);
-    
+
 #ifdef _WIN32
     HKEY hKey;
     char productName[BUFFERSIZE] = {0};
@@ -107,7 +107,7 @@ void fetch_os_name(char *os_name) {
     char displayVersion[BUFFERSIZE] = {0};
     DWORD size;
     char buildNumberStr[BUFFERSIZE] = {0};
-    
+
     if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
                     "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
                     0, KEY_READ, &hKey) == ERROR_SUCCESS) {
@@ -127,7 +127,7 @@ void fetch_os_name(char *os_name) {
             size = BUFFERSIZE;
             RegQueryValueEx(hKey, "ReleaseId", NULL, NULL, (LPBYTE)releaseId, &size);
         }
-        
+
         if (strlen(displayVersion) > 0) {
             snprintf(os_name, BUFFERSIZE, "%s %s", productName, displayVersion);
         } else if (strlen(releaseId) > 0) {
@@ -135,7 +135,7 @@ void fetch_os_name(char *os_name) {
         } else {
             strncpy(os_name, productName, BUFFERSIZE);
         }
-        
+
         RegCloseKey(hKey);
     }
 #else
@@ -175,7 +175,7 @@ void fetch_kernel_version(char *kernel_version) {
     if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
                      "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
                      0, KEY_READ, &hKey) == ERROR_SUCCESS) {
-        
+
         DWORD size = BUFFERSIZE;
         RegQueryValueEx(hKey, "CurrentBuildNumber", NULL, NULL, (LPBYTE)buildNumber, &size);
         RegCloseKey(hKey);
@@ -184,14 +184,14 @@ void fetch_kernel_version(char *kernel_version) {
     if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
                      "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
                      0, KEY_READ, &hKey) == ERROR_SUCCESS) {
-        
+
         DWORD size = sizeof(DWORD);
         RegQueryValueEx(hKey, "UBR", NULL, NULL, (LPBYTE)&ubr, &size);
-        
+
         char displayVersion[BUFFERSIZE] = {0};
         size = BUFFERSIZE;
         RegQueryValueEx(hKey, "DisplayVersion", NULL, NULL, (LPBYTE)displayVersion, &size);
-        
+
         if (strlen(displayVersion) > 0) {
             snprintf(kernel_version, BUFFERSIZE, "WIN32_NT %d.%d.%s.%d (%s)",
                     osvi.dwMajorVersion, osvi.dwMinorVersion, buildNumber, ubr, displayVersion);
@@ -199,7 +199,7 @@ void fetch_kernel_version(char *kernel_version) {
             snprintf(kernel_version, BUFFERSIZE, "WIN32_NT %d.%d.%s.%d",
                     osvi.dwMajorVersion, osvi.dwMinorVersion, buildNumber, ubr);
         }
-        
+
         RegCloseKey(hKey);
     } else {
         snprintf(kernel_version, BUFFERSIZE, "WIN32_NT %d.%d (Build %s)",
@@ -226,13 +226,13 @@ void fetch_desktop_name(char *desktop_name) {
     ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
     osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
     GetVersionEx((OSVERSIONINFO*)&osvi);
-    
+
     char buildNumber[BUFFERSIZE] = {0};
     HKEY hKey;
     if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
                    "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
                    0, KEY_READ, &hKey) == ERROR_SUCCESS) {
-        
+
         DWORD size = BUFFERSIZE;
         RegQueryValueEx(hKey, "CurrentBuildNumber", NULL, NULL, (LPBYTE)buildNumber, &size);
         RegCloseKey(hKey);
@@ -289,7 +289,7 @@ void fetch_terminal_name(char *terminal_name) {
         ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
         osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
         GetVersionEx((OSVERSIONINFO*)&osvi);
-        
+
         DWORD buildNumber = 0;
         HKEY hKey;
         if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
@@ -298,15 +298,15 @@ void fetch_terminal_name(char *terminal_name) {
             DWORD size = sizeof(DWORD);
             DWORD ubr = 0;
             RegQueryValueEx(hKey, "UBR", NULL, NULL, (LPBYTE)&ubr, &size);
-            
+
             char buildNumberStr[BUFFERSIZE];
             size = BUFFERSIZE;
             RegQueryValueEx(hKey, "CurrentBuildNumber", NULL, NULL, (LPBYTE)buildNumberStr, &size);
             buildNumber = atoi(buildNumberStr);
-            
-            snprintf(terminal_name, BUFFERSIZE, "Windows Console %d.%d.%d.%d", 
+
+            snprintf(terminal_name, BUFFERSIZE, "Windows Console %d.%d.%d.%d",
                     osvi.dwMajorVersion, osvi.dwMinorVersion, buildNumber, ubr);
-            
+
             RegCloseKey(hKey);
         } else {
             strncpy(terminal_name, "Windows Console", BUFFERSIZE);
@@ -352,8 +352,8 @@ void fetch_cpu_name(char *cpu_name) {
 
 #ifdef _WIN32
     HKEY hKey;
-    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, 
-                    "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", 
+    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+                    "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0",
                     0, KEY_READ, &hKey) == ERROR_SUCCESS) {
         DWORD size = BUFFERSIZE;
         RegQueryValueEx(hKey, "ProcessorNameString", NULL, NULL, (LPBYTE)cpu_name, &size);
@@ -393,8 +393,8 @@ void fetch_cpu_usage(char *cpu_usage) {
     }
 
     uint64_t idle, kernel, user;
-    if (!FileTimeToUInt64(&idleTime, &idle) || 
-        !FileTimeToUInt64(&kernelTime, &kernel) || 
+    if (!FileTimeToUInt64(&idleTime, &idle) ||
+        !FileTimeToUInt64(&kernelTime, &kernel) ||
         !FileTimeToUInt64(&userTime, &user)) {
         snprintf(cpu_usage, BUFFERSIZE, "Time Conversion Error");
         return;
@@ -421,7 +421,7 @@ void fetch_cpu_usage(char *cpu_usage) {
     snprintf(cpu_usage, BUFFERSIZE, "%.0f%%", cpuPercent);
 #else
     strncpy(cpu_usage, "Unknown", BUFFERSIZE);
-    
+
     FILE *f = fopen("/proc/stat", "r");
     if (!f)
         return;
@@ -456,15 +456,15 @@ void fetch_ram_usage(char *ram_usage) {
     MEMORYSTATUSEX memInfo;
     memInfo.dwLength = sizeof(MEMORYSTATUSEX);
     GlobalMemoryStatusEx(&memInfo);
-    
+
     DWORDLONG totalMem = memInfo.ullTotalPhys;
     DWORDLONG usedMem = totalMem - memInfo.ullAvailPhys;
-    
+
     double totalGB = (double)totalMem / (1024 * 1024 * 1024);
     double usedGB = (double)usedMem / (1024 * 1024 * 1024);
     double percentage = 100.0 * usedMem / totalMem;
-    
-    snprintf(ram_usage, BUFFERSIZE, "%.2fGB / %.2fGB (%.0f%%)", 
+
+    snprintf(ram_usage, BUFFERSIZE, "%.2fGB / %.2fGB (%.0f%%)",
              usedGB, totalGB, percentage);
 #else
     FILE *f = fopen("/proc/meminfo", "r");
@@ -510,47 +510,49 @@ void fetch_swap_usage(char *swap_usage) {
         if (totalSwap > 0) {
             if (usedSwap < 0) usedSwap = 0;
             double totalGB = (double)totalSwap / (1024 * 1024 * 1024);
-            
+
             if (usedSwap == 0) {
                 snprintf(swap_usage, BUFFERSIZE, "0 B / %.2f GiB (0%%)", totalGB);
             } else {
                 double usedGB = (double)usedSwap / (1024 * 1024 * 1024);
                 double percentage = 100.0 * usedSwap / totalSwap;
-                
-                snprintf(swap_usage, BUFFERSIZE, "%.2f GiB / %.2f GiB (%.0f%%)", 
+
+                snprintf(swap_usage, BUFFERSIZE, "%.2f GiB / %.2f GiB (%.0f%%)",
                          usedGB, totalGB, percentage);
             }
         } else {
             strncpy(swap_usage, "Not Available", BUFFERSIZE);
         }
     }
-#else
-    FILE *f = fopen("/proc/meminfo", "r");
-    if (!f)
-        return;
+    #else
+        FILE *f = fopen("/proc/meminfo", "r");
+        if (!f)
+            return;
 
-    char buffer[BUFFERSIZE] = { 0 };
-    size_t total_kB = 0, used_kB = 0;
-    while (fgets(buffer, BUFFERSIZE, f) != NULL) {
-        if (total_kB && used_kB)
-            break;
-        sscanf(buffer, "SwapTotal: %zd kB", &total_kB);
-        sscanf(buffer, "SwapFree: %zd kB", &used_kB);
+        char buffer[BUFFERSIZE] = { 0 };
+        size_t total_kB = 0, free_kB = 0;
+        while (fgets(buffer, BUFFERSIZE, f) != NULL) {
+            if (!strncmp(buffer, "SwapTotal:", 10))
+                sscanf(buffer, "SwapTotal: %zd kB", &total_kB);
+            else if (!strncmp(buffer, "SwapFree:", 9))
+                sscanf(buffer, "SwapFree: %zd kB", &free_kB);
+        }
+
+        if (total_kB == 0) {
+            strncpy(swap_usage, "0kB", BUFFERSIZE);
+        } else if (total_kB > 0) {
+            size_t used_kB = total_kB - free_kB;
+            snprintf(swap_usage, BUFFERSIZE,
+                "%.2fGB / %.2fGB (%.0f%%)",
+                (double)used_kB / 1024 / 1024,
+                (double)total_kB / 1024 / 1024,
+                (double)used_kB * 100 / total_kB
+            );
+        }
+
+        fclose(f);
+    #endif
     }
-
-    if (total_kB && used_kB) {
-        used_kB = total_kB - used_kB;
-        snprintf(swap_usage, BUFFERSIZE,
-            "%.2fGB / %.2fGB (%.0f%%)",
-            (double)used_kB / 1024 / 1024,
-            (double)total_kB / 1024 / 1024,
-            (double)used_kB * 100 / total_kB
-        );
-    }
-
-    fclose(f);
-#endif
-}
 
 void fetch_disk_usage(char *disk_usage) {
     NULL_RETURN(disk_usage);
@@ -561,10 +563,10 @@ void fetch_disk_usage(char *disk_usage) {
     if (GetDiskFreeSpaceEx("C:\\", &freeBytesAvailable, &totalBytes, &totalFreeBytes)) {
         ULONGLONG total_bytes = totalBytes.QuadPart;
         ULONGLONG used_bytes = total_bytes - totalFreeBytes.QuadPart;
-        
+
         snprintf(disk_usage, BUFFERSIZE,
-            "%.1fGB / %.1fGB (%.0f%%)", 
-            (double)used_bytes / 1024 / 1024 / 1024, 
+            "%.1fGB / %.1fGB (%.0f%%)",
+            (double)used_bytes / 1024 / 1024 / 1024,
             (double)total_bytes / 1024 / 1024 / 1024,
             (double)used_bytes * 100 / total_bytes
         );
@@ -685,7 +687,7 @@ void update_dynamic_stats(system_stats *stats) {
 
 void get_terminal_size(int *columns, int *lines) {
     *columns = 0; *lines = 0;
-    
+
 #ifdef _WIN32
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
@@ -717,7 +719,7 @@ void clear_screen(int columns, int lines) {
     DWORD cCharsWritten;
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     DWORD dwConSize;
-    
+
     GetConsoleScreenBufferInfo(hConsole, &csbi);
     dwConSize = csbi.dwSize.X * csbi.dwSize.Y;
     FillConsoleOutputCharacter(hConsole, ' ', dwConSize, coordScreen, &cCharsWritten);
@@ -778,7 +780,7 @@ BOOL WINAPI handle_exit_win(DWORD signal) {
     clear_screen(columns, lines);
     print_stats(sysstats);
     print_logo();
-    
+
     printf("\n");
     // Show the cursor again
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -786,7 +788,7 @@ BOOL WINAPI handle_exit_win(DWORD signal) {
     GetConsoleCursorInfo(hConsole, &cursorInfo);
     cursorInfo.bVisible = TRUE;
     SetConsoleCursorInfo(hConsole, &cursorInfo);
-    
+
     WSACleanup();
     exit(0);
     return TRUE;
@@ -817,13 +819,13 @@ int main(int argc, char** argv) {
     GetConsoleCursorInfo(hConsole, &cursorInfo);
     cursorInfo.bVisible = FALSE;
     SetConsoleCursorInfo(hConsole, &cursorInfo);
-    
+
     SetConsoleCtrlHandler(handle_exit_win, TRUE);
 #else
     signal(SIGINT, handle_exit);
     system("tput civis");
 #endif
-    
+
     if (argc == 2) {
         if (strcmp(argv[1], "jelly") == 0) {
             jorb = &jelly_jorb;

@@ -25,6 +25,7 @@ typedef struct system_stats {
          shell_name[BUFFERSIZE],
          terminal_name[BUFFERSIZE],
          cpu_name[BUFFERSIZE],
+         gpu_name[BUFFERSIZE],
          cpu_usage[BUFFERSIZE],
          ram_usage[BUFFERSIZE],
          swap_usage[BUFFERSIZE],

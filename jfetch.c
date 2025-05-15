@@ -656,6 +656,56 @@ void fetch_battery_charge(char *battery_charge) {
 #endif
 }
 
+void fetch_gpu_info(char* buffer) {
+    FILE* fp;
+    char output[256] = {0};
+    fp = popen("nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null", "r");
+    if (fp != NULL && fgets(output, sizeof(output), fp) != NULL &&
+        strlen(output) > 1 && strstr(output, "Cannot Communicate") == NULL) {
+        if (fgets(output, sizeof(output), fp) != NULL && strlen(output) > 1) {
+            output[strcspn(output, "\n")] = 0;
+            sprintf(buffer, "%s", output);
+            pclose(fp);
+            return;
+        }
+        pclose(fp);
+    }
+
+    fp = popen("lspci | grep -i 'vga\\|3d\\|display' | grep -i 'amd\\|ati' | head -1 | sed 's/^.*: //'", "r");
+    if (fp != NULL) {
+        if (fgets(output, sizeof(output), fp) != NULL && strlen(output) > 1) {
+            output[strcspn(output, "\n")] = 0;
+            sprintf(buffer, "%s", output);
+            pclose(fp);
+            return;
+        }
+        pclose(fp);
+    }
+
+    fp = popen("lspci | grep -i 'vga\\|3d\\|display' | grep -i 'intel' | head -1 | sed 's/^.*: //'", "r");
+    if (fp != NULL) {
+        if (fgets(output, sizeof(output), fp) != NULL && strlen(output) > 1) {
+            output[strcspn(output, "\n")] = 0;
+            sprintf(buffer, "%s", output);
+            pclose(fp);
+            return;
+        }
+        pclose(fp);
+    }
+    fp = popen("lspci | grep -i 'vga\\|3d\\|display' | head -1 | sed 's/^.*: //'", "r");
+    if (fp != NULL) {
+        if (fgets(output, sizeof(output), fp) != NULL && strlen(output) > 1) {
+            output[strcspn(output, "\n")] = 0;
+            sprintf(buffer, "%s", output);
+            pclose(fp);
+            return;
+        }
+        pclose(fp);
+    }
+    sprintf(buffer, "Unknown GPU");
+}
+
+
 void fetch_stats(system_stats *stats) {
     fetch_user_name(stats->user_name);
     fetch_host_name(stats->host_name);
@@ -666,6 +716,7 @@ void fetch_stats(system_stats *stats) {
     fetch_shell_name(stats->shell_name);
     fetch_terminal_name(stats->terminal_name);
     fetch_cpu_name(stats->cpu_name);
+    fetch_gpu_info(stats->gpu_name);
     fetch_cpu_usage(stats->cpu_usage);
     fetch_ram_usage(stats->ram_usage);
     fetch_swap_usage(stats->swap_usage);
@@ -762,6 +813,7 @@ void print_stats(system_stats stats) {
     printf(POS COLOR_CYAN "Shell:    " COLOR_RESET " %s", line++, column, stats.shell_name);
     printf(POS COLOR_CYAN "Terminal: " COLOR_RESET " %s", line++, column, stats.terminal_name);
     printf(POS COLOR_CYAN "CPU:      " COLOR_RESET " %s", line++, column, stats.cpu_name);
+    printf(POS COLOR_CYAN "GPU:      " COLOR_RESET " %s", line++, column, stats.gpu_name);
     printf(POS, line, column);
     for (int i = 0; i < 50; i++) putchar(' '); // bro im lazy ok?
     printf(POS COLOR_CYAN "CPU Usage:" COLOR_RESET " %s", line++, column, stats.cpu_usage);

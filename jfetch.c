@@ -664,6 +664,9 @@ void fetch_gpu_info(char* buffer) {
     HKEY hKey;
     char gpuName[BUFFERSIZE] = {0};
     DWORD size = BUFFERSIZE;
+    char primaryGPU[BUFFERSIZE] = {0};
+    char integratedGPU[BUFFERSIZE] = {0};
+    
     if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
         "SYSTEM\\CurrentControlSet\\Enum\\PCI", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
         HKEY subKey;
@@ -679,7 +682,6 @@ void fetch_gpu_info(char* buffer) {
                 char childName[BUFFERSIZE];
                 DWORD childLen = BUFFERSIZE;
                 DWORD j = 0;
-                // Each device may have subkeys (instances)
                 while (RegEnumKeyEx(deviceKey, j++, childName, &childLen, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
                     HKEY instKey;
                     char instPath[BUFFERSIZE * 2];
@@ -690,20 +692,17 @@ void fetch_gpu_info(char* buffer) {
                         if (RegQueryValueEx(instKey, "Class", NULL, NULL, (LPBYTE)className, &classSize) == ERROR_SUCCESS) {
                             if (_stricmp(className, "Display") == 0) {
                                 DWORD nameSize = BUFFERSIZE;
-                                if (RegQueryValueEx(instKey, "FriendlyName", NULL, NULL, (LPBYTE)gpuName, &nameSize) == ERROR_SUCCESS) {
-                                    strncpy(buffer, gpuName, BUFFERSIZE);
-                                    RegCloseKey(instKey);
-                                    RegCloseKey(deviceKey);
-                                    RegCloseKey(hKey);
-                                    return;
-                                }
-                                nameSize = BUFFERSIZE;
-                                if (RegQueryValueEx(instKey, "DeviceDesc", NULL, NULL, (LPBYTE)gpuName, &nameSize) == ERROR_SUCCESS) {
-                                    strncpy(buffer, gpuName, BUFFERSIZE);
-                                    RegCloseKey(instKey);
-                                    RegCloseKey(deviceKey);
-                                    RegCloseKey(hKey);
-                                    return;
+                                if (RegQueryValueEx(instKey, "FriendlyName", NULL, NULL, (LPBYTE)gpuName, &nameSize) == ERROR_SUCCESS ||
+                                    RegQueryValueEx(instKey, "DeviceDesc", NULL, NULL, (LPBYTE)gpuName, &nameSize) == ERROR_SUCCESS) {
+                                    if (strstr(gpuName, "NVIDIA") || strstr(gpuName, "AMD") || 
+                                        strstr(gpuName, "Radeon") || strstr(gpuName, "GeForce")) {
+                                        strncpy(primaryGPU, gpuName, BUFFERSIZE);
+                                    } 
+                                    else if (strstr(gpuName, "Intel") || strstr(gpuName, "UHD") || 
+                                             strstr(gpuName, "HD Graphics") || 
+                                             strlen(integratedGPU) == 0) {
+                                        strncpy(integratedGPU, gpuName, BUFFERSIZE);
+                                    }
                                 }
                             }
                         }
@@ -716,21 +715,54 @@ void fetch_gpu_info(char* buffer) {
             subKeyLen = BUFFERSIZE;
         }
         RegCloseKey(hKey);
+        
+        // Use dedicated GPU if found, otherwise use integrated
+        if (strlen(primaryGPU) > 0) {
+            strncpy(buffer, primaryGPU, BUFFERSIZE);
+            return;
+        }
+        else if (strlen(integratedGPU) > 0) {
+            strncpy(buffer, integratedGPU, BUFFERSIZE);
+            return;
+        }
     }
+    
+    // Fallback to WMI if registry method fails
     FILE* fp = popen("wmic path win32_VideoController get Name /value", "r");
     if (fp) {
         char line[BUFFERSIZE] = {0};
+        char primaryGPU[BUFFERSIZE] = {0};
+        char integratedGPU[BUFFERSIZE] = {0};
+        
         while (fgets(line, sizeof(line), fp)) {
             char* pos = strstr(line, "Name=");
             if (pos) {
                 pos += 5;
                 size_t len = strlen(pos);
                 if (len > 0 && pos[len - 1] == '\n') pos[len - 1] = 0;
-                strncpy(buffer, pos, BUFFERSIZE);
-                break;
+                
+                // Prioritize dedicated GPUs
+                if (strstr(pos, "NVIDIA") || strstr(pos, "AMD") || 
+                    strstr(pos, "Radeon") || strstr(pos, "GeForce")) {
+                    strncpy(primaryGPU, pos, BUFFERSIZE);
+                }
+                // Save Intel/integrated as backup
+                else if (strstr(pos, "Intel") || strstr(pos, "UHD") || 
+                         strstr(pos, "HD Graphics") ||
+                         strlen(integratedGPU) == 0) {
+                    strncpy(integratedGPU, pos, BUFFERSIZE);
+                }
             }
         }
         pclose(fp);
+        
+        // Use dedicated GPU if found, otherwise use integrated
+        if (strlen(primaryGPU) > 0) {
+            strncpy(buffer, primaryGPU, BUFFERSIZE);
+        }
+        else if (strlen(integratedGPU) > 0) {
+            strncpy(buffer, integratedGPU, BUFFERSIZE);
+        }
     }
 #else
     FILE* fp;
@@ -935,6 +967,8 @@ void handle_exit(int /*signal*/) {
 
 int main(int argc, char** argv) {
 #ifdef _WIN32
+    SetConsoleOutputCP(65001);
+    SetConsoleCP(65001);
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
         fprintf(stderr, "WSAStartup failed\n");

@@ -657,25 +657,99 @@ void fetch_battery_charge(char *battery_charge) {
 }
 
 void fetch_gpu_info(char* buffer) {
+    NULL_RETURN(buffer);
+    strncpy(buffer, "Unknown GPU", BUFFERSIZE);
+
+#ifdef _WIN32
+    HKEY hKey;
+    char gpuName[BUFFERSIZE] = {0};
+    DWORD size = BUFFERSIZE;
+    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+        "SYSTEM\\CurrentControlSet\\Enum\\PCI", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+        HKEY subKey;
+        char subKeyName[BUFFERSIZE];
+        DWORD subKeyLen = BUFFERSIZE;
+        DWORD i = 0;
+        while (RegEnumKeyEx(hKey, i++, subKeyName, &subKeyLen, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
+            HKEY deviceKey;
+            char devicePath[BUFFERSIZE * 2];
+            snprintf(devicePath, sizeof(devicePath), "SYSTEM\\CurrentControlSet\\Enum\\PCI\\%s", subKeyName);
+            if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, devicePath, 0, KEY_READ, &deviceKey) == ERROR_SUCCESS) {
+                HKEY childKey;
+                char childName[BUFFERSIZE];
+                DWORD childLen = BUFFERSIZE;
+                DWORD j = 0;
+                // Each device may have subkeys (instances)
+                while (RegEnumKeyEx(deviceKey, j++, childName, &childLen, NULL, NULL, NULL, NULL) == ERROR_SUCCESS) {
+                    HKEY instKey;
+                    char instPath[BUFFERSIZE * 2];
+                    snprintf(instPath, sizeof(instPath), "%s\\%s", devicePath, childName);
+                    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, instPath, 0, KEY_READ, &instKey) == ERROR_SUCCESS) {
+                        char className[BUFFERSIZE] = {0};
+                        DWORD classSize = BUFFERSIZE;
+                        if (RegQueryValueEx(instKey, "Class", NULL, NULL, (LPBYTE)className, &classSize) == ERROR_SUCCESS) {
+                            if (_stricmp(className, "Display") == 0) {
+                                DWORD nameSize = BUFFERSIZE;
+                                if (RegQueryValueEx(instKey, "FriendlyName", NULL, NULL, (LPBYTE)gpuName, &nameSize) == ERROR_SUCCESS) {
+                                    strncpy(buffer, gpuName, BUFFERSIZE);
+                                    RegCloseKey(instKey);
+                                    RegCloseKey(deviceKey);
+                                    RegCloseKey(hKey);
+                                    return;
+                                }
+                                nameSize = BUFFERSIZE;
+                                if (RegQueryValueEx(instKey, "DeviceDesc", NULL, NULL, (LPBYTE)gpuName, &nameSize) == ERROR_SUCCESS) {
+                                    strncpy(buffer, gpuName, BUFFERSIZE);
+                                    RegCloseKey(instKey);
+                                    RegCloseKey(deviceKey);
+                                    RegCloseKey(hKey);
+                                    return;
+                                }
+                            }
+                        }
+                        RegCloseKey(instKey);
+                    }
+                    childLen = BUFFERSIZE;
+                }
+                RegCloseKey(deviceKey);
+            }
+            subKeyLen = BUFFERSIZE;
+        }
+        RegCloseKey(hKey);
+    }
+    FILE* fp = popen("wmic path win32_VideoController get Name /value", "r");
+    if (fp) {
+        char line[BUFFERSIZE] = {0};
+        while (fgets(line, sizeof(line), fp)) {
+            char* pos = strstr(line, "Name=");
+            if (pos) {
+                pos += 5;
+                size_t len = strlen(pos);
+                if (len > 0 && pos[len - 1] == '\n') pos[len - 1] = 0;
+                strncpy(buffer, pos, BUFFERSIZE);
+                break;
+            }
+        }
+        pclose(fp);
+    }
+#else
     FILE* fp;
     char output[256] = {0};
     fp = popen("nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null", "r");
     if (fp != NULL && fgets(output, sizeof(output), fp) != NULL &&
         strlen(output) > 1 && strstr(output, "Cannot Communicate") == NULL) {
-        if (fgets(output, sizeof(output), fp) != NULL && strlen(output) > 1) {
-            output[strcspn(output, "\n")] = 0;
-            sprintf(buffer, "%s", output);
-            pclose(fp);
-            return;
-        }
+        output[strcspn(output, "\n")] = 0;
+        strncpy(buffer, output, BUFFERSIZE);
         pclose(fp);
+        return;
     }
+    if (fp) pclose(fp);
 
     fp = popen("lspci | grep -i 'vga\\|3d\\|display' | grep -i 'amd\\|ati' | head -1 | sed 's/^.*: //'", "r");
     if (fp != NULL) {
         if (fgets(output, sizeof(output), fp) != NULL && strlen(output) > 1) {
             output[strcspn(output, "\n")] = 0;
-            sprintf(buffer, "%s", output);
+            strncpy(buffer, output, BUFFERSIZE);
             pclose(fp);
             return;
         }
@@ -686,7 +760,7 @@ void fetch_gpu_info(char* buffer) {
     if (fp != NULL) {
         if (fgets(output, sizeof(output), fp) != NULL && strlen(output) > 1) {
             output[strcspn(output, "\n")] = 0;
-            sprintf(buffer, "%s", output);
+            strncpy(buffer, output, BUFFERSIZE);
             pclose(fp);
             return;
         }
@@ -696,13 +770,13 @@ void fetch_gpu_info(char* buffer) {
     if (fp != NULL) {
         if (fgets(output, sizeof(output), fp) != NULL && strlen(output) > 1) {
             output[strcspn(output, "\n")] = 0;
-            sprintf(buffer, "%s", output);
+            strncpy(buffer, output, BUFFERSIZE);
             pclose(fp);
             return;
         }
         pclose(fp);
     }
-    sprintf(buffer, "Unknown GPU");
+#endif
 }
 
 

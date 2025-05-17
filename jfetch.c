@@ -421,7 +421,9 @@ void print_stats(system_stats stats) {
     printf(POS COLOR_CYAN "Battery:  " COLOR_RESET " %s", line++, column, stats.battery_charge);
 }
 
-void handle_exit(int /*signal*/) {
+void handle_exit(int signal) {
+    UNUSED_ARG(signal);
+
     int columns, lines;
     get_terminal_size(&columns, &lines);
     clear_screen(columns, lines);
@@ -449,6 +451,7 @@ int main() {
             prev_columns = columns; 
             prev_lines = lines;
         }
+
         print_stats(sysstats);
         print_logo();
         fflush(stdout);

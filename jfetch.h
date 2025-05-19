@@ -14,6 +14,7 @@
 #define POS "\033[%d;%dH" // Move cursor to y;x
 
 #define NULL_RETURN(ptr) do { if (ptr == NULL) return; } while (0)
+#define UNUSED_ARG(arg) do { (void)(arg); } while (0)
 
 typedef struct system_stats {
     char user_name[BUFFERSIZE],

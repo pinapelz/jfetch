@@ -31,9 +31,11 @@ Displays information about your operating system (Linux-only), software and hard
 
 # Usage
 
-To build the executable you can use the build.sh script or simply compile jfetch.c with the compiler of your choice.
+You can build the executable using `make` or by running the `./build.sh` script.
 
-Jfetch has no configuration files, so if you want to remove/rearrange the outputs you will need to edit the prints_stats functions and recompile the program.
+If you use an Arch-based system you can install it from the [AUR](https://aur.archlinux.org/packages/jellyfetch-git)
+
+jfetch has no configuration files, so if you want to remove/rearrange the outputs you will need to edit the prints_stats function and recompile the program.
 
 # Extras
 

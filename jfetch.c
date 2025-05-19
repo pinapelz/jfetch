@@ -23,7 +23,7 @@
 #include <sys/statvfs.h>
 #endif
 
-#include "jorb.c" // Jorb animation object
+#include "jorb.h" // Jorb animation object 
 #include "jfetch.h"
 
 // Platform-specific implementations
@@ -1011,6 +1011,7 @@ int main(int argc, char** argv) {
             prev_columns = columns;
             prev_lines = lines;
         }
+
         print_stats(sysstats);
         print_logo();
         fflush(stdout);

@@ -1,6 +1,6 @@
 #include "jfetch.h"
 
-static animation_object erina_jorb = {
+animation_object erina_jorb = {
     .current_frame = 0,
     .frame_count = 66,
     .color = "\033[38;2;45;120;180m",
@@ -74,7 +74,7 @@ static animation_object erina_jorb = {
     }
 };
 
-static animation_object jelly_jorb = {
+animation_object jelly_jorb = {
     .current_frame = 0,
     .frame_count = 39,
     .color = "\033[38;5;14m",
